@@ -2,6 +2,13 @@
 
 use strict;
 use warnings;
+use utf8;
+
+# Imported modules
+use Data::Dumper;
+use JSON::XS;
+use IO::File;
+use XML::Writer;
 
 my $paramInputFile = "";		#
 my $paramOutputFile = "";		#
@@ -18,8 +25,41 @@ my $paramArraySize = 0;			#
 my $paramIndexItems = 0;		#
 my $paramIndexItemsStart = -1;	#
 
-# Parse arguments 
-parseArguments(@ARGV);
+#############################################################################
+# Main
+#############################################################################
+
+	# Parse arguments 
+	parseArguments(@ARGV);	
+	
+	# Load JSON file
+	open(my $fileHandler, '<', $paramInputFile) or printError("Cannot open input file", 2);
+	
+		local $/ = undef;
+		# Read whole file to buffer
+		my $jsonDataRaw = <$fileHandler>;
+		
+	# Close JSON file
+	close($fileHandler);	
+	
+	# Create instance of JSON parser
+	my $jsonParser = JSON::XS->new();
+	my $jsonData;
+	
+	# Simulate try catch block
+	eval{	
+		# Parse JSON file
+		$jsonData = $jsonParser->utf8->decode($jsonDataRaw);
+	};
+	if($@){
+		printError("Invalid format of input data", 4);
+	}
+		
+	printError("Invalid format of input data", 4) if(ref $jsonData eq "ARRAY");
+
+	print Dumper $jsonData;
+
+# /Main
 
 #############################################################################
 # parseArguments()
@@ -34,7 +74,7 @@ sub parseArguments{
 	my $argvString = join(" ", @argv) . " ";	
 
 	# Help
-  	if($argvString =~ /^--help$/){
+  	if($argvString =~ /^--help $/){
 		printHelp();
 	}
 	
@@ -43,7 +83,7 @@ sub parseArguments{
 		if($argvString =~ s/--input=([\S]*) //){
 			$paramInputFile = $1;
 			
-			printError("Input file does not exists", 1) if (! -f $paramInputFile);		
+			printError("Input file does not exists", 2) if (! -f $paramInputFile);		
 		}
 		else{
 			printError("Invalid usage of argument --input", 1);
@@ -56,7 +96,7 @@ sub parseArguments{
 			$paramOutputFile = $1;
 			
 			printError("Invalid name of output file", 1) if($paramOutputFile eq "");
-			printError("Output file is existing directory", 1) if (-d $paramOutputFile);		
+			printError("Output file is existing directory", 3) if (-d $paramOutputFile);		
 		}
 		else{
 			printError("Invalid usage of argument --output", 1);
@@ -152,12 +192,20 @@ sub printHelp{
 	print "\tjsn.pl --help\n";
 	print "\tjsn.pl --input=file --output=file [OPTIONS]\n";
 	print "Options:\n";
-	print "\t-n\t\tNot generate XML header\n";
- 	print "\t-s\t\tTransform strings to element\n";
- 	print "\t-i\t\tTransform numbers to element\n";
- 	print "\t-l\t\tTransform literals to element\n";
- 	print "\t-r=root-element\tSet name of root element\n";
- 	print "\t-h=subst\tSet substitution of unallowed characters\n";
+ 	print "\t-n\t\t\tDisable generating XML header\n";
+ 	print "\t-s\t\t\tTransform strings to element\n";
+ 	print "\t-i\t\t\tTransform numbers to element\n";
+ 	print "\t-l\t\t\tTransform literals to element\n";
+ 	print "\t-c\t\t\tK\n";
+ 	print "\t-r=<root-element>\tSet name of root element\n";
+ 	print "\t-h=<subst>\t\tSet substitution of unallowed characters\n";
+ 	print "\t--array-name=<element>\tK\n";
+ 	print "\t--item-name=<element>\tK\n";
+ 	print "\t--array-size / -a\tK\n";
+ 	print "\t--index-items\t\tK\n";
+ 	print "\t--start=<number>\tK\n";
+ 	print "Author:\n";
+ 	print "\txkolac12 <xkolac12\@stud.fit.vutbr.cz>\n";
 
 	exit 0;
 }
@@ -165,15 +213,14 @@ sub printHelp{
 
 # printError()
 sub printError{
-	if(@_ > 0){
-		print "$_[0]\n";
+	my @argv = @_;
 	
-		if(@_ == 2){
-			exit $_[1];
-		}
-		else{
-			exit 100;
-		}
+	if(@argv > 0){
+		print "[!] $argv[0]\n";
+		
+		exit ((@argv == 2)? $argv[1] : 255);
 	}
+	
+	exit 255;
 }
 # /printError()
