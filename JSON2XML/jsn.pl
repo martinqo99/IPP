@@ -25,6 +25,13 @@ my $paramArraySize = 0;			#
 my $paramIndexItems = 0;		#
 my $paramIndexItemsStart = -1;	#
 
+# Create instance of IO::File
+my $fileHandler = new IO::File();
+# Create instance of JSON parser
+my $jsonParser = new JSON::XS();
+# Global instance of XML Writer
+my $XML;
+
 #############################################################################
 # Main
 #############################################################################
@@ -33,9 +40,6 @@ my $paramIndexItemsStart = -1;	#
 	parseArguments(@ARGV);
 	
 	local $/ = undef;
-	
-	# Create instance of IO::File
-	my $fileHandler = new IO::File();
 	
 	# Open input file
 	$fileHandler->open("< $paramInputFile") or printError("Cannot open input file", 2);
@@ -46,10 +50,6 @@ my $paramIndexItemsStart = -1;	#
 	# Close input file
 	$fileHandler->close();
 	
-	undef $fileHandler;
-	
-	# Create instance of JSON parser
-	my $jsonParser = new JSON::XS();
 	my $jsonData;
 	
 	# Simulate try catch block
@@ -223,14 +223,12 @@ sub createXML{
 	my $data = $_[0];
 	my $outputFile = $_[1];
 	
-	my $fileHandler = new IO::File();
-	
 	# Open output file
 	$fileHandler->open("> $outputFile") or printError("Cannot open output file", 3);
 	
 	# Create instance of XML Writer
 	# ,,Error reporting can be turned off by providing an UNSAFE parameter"
-	my $XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1);
+	$XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1);
 
 	$XML->xmlDecl("UTF-8") unless $paramN;
 	$XML->startTag($paramRootElement) unless $paramRootElement eq "";
@@ -243,12 +241,10 @@ sub createXML{
 	# Close XML Writer
 	$XML->end();
 	
+	undef $XML;
+	
 	# Close output file
 	$fileHandler->close();
-	
-	#print isValidTagName("a")."\n";
-	#print isValidTagName("xmla")."\n";
-	#print isValidTagName("0a")."\n";
 }
 # /createXML()
 
