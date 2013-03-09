@@ -3,6 +3,11 @@
 use strict;
 use warnings;
 use utf8;
+use encoding 'utf-8';
+
+binmode STDIN, ":utf8";
+binmode STDOUT, ":utf8";
+binmode STDERR, ":utf8";
 
 # Imported modules
 use Data::Dumper;
@@ -15,8 +20,8 @@ my $paramOutputFile = "-";		#
 my $paramSubstitution = "-";	# Substitution of unallowed characters
 my $paramN = 0; 				# Do not generate XML header
 my $paramRootElement = "";		# Name of root elementy
-my $paramArrayName = "";		#
-my $paramItemName = "";			#
+my $paramArrayName = "array";	#
+my $paramItemName = "item";		#
 my $paramS = 0; 				# Transformace typu string na text elementy
 my $paramI = 0; 				# Transformace typu number na text elementy
 my $paramL = 0; 				# Transformace literalu na elementy
@@ -55,7 +60,7 @@ my $XML;
 	# Simulate try catch block
 	eval{	
 		# Parse JSON file
-		$jsonData = $jsonParser->utf8->decode($jsonDataRaw);
+		$jsonData = $jsonParser->utf8(0)->decode($jsonDataRaw);
 	};
 	# Catch
 	if($@){
@@ -63,7 +68,7 @@ my $XML;
 	}
 	
 	# 
-	printError("Invalid format of input data", 4) if(ref $jsonData eq "ARRAY");
+	#printError("Invalid format of input data", 4) if(ref $jsonData eq "ARRAY");
 	
 	# Free JSON parser & input buffer
 	undef $jsonParser;
@@ -226,6 +231,8 @@ sub createXML{
 	# Open output file
 	$fileHandler->open("> $outputFile") or printError("Cannot open output file", 3);
 	
+	binmode $fileHandler, ":encoding(utf8)";
+	
 	# Create instance of XML Writer
 	# ,,Error reporting can be turned off by providing an UNSAFE parameter"
 	$XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1);
@@ -234,6 +241,7 @@ sub createXML{
 	$XML->startTag($paramRootElement) unless $paramRootElement eq "";
 
 	#print Dumper $data;
+	processJSON($data);
 
 	
 	$XML->endTag($paramRootElement) unless $paramRootElement eq "";
@@ -248,8 +256,141 @@ sub createXML{
 }
 # /createXML()
 
+sub processJSON{
+	my $json = $_[0];
+
+	# Array
+	if(ref $json eq 'ARRAY'){
+		$XML->startTag($paramArrayName);
+		
+		foreach(@$json){
+			
+			if(ref $_ eq "" or ref $_ eq "JSON::XS::Boolean"){
+				processData($paramItemName, $_);
+			}
+			else{
+				$XML->startTag($paramItemName);
+				
+				processJSON($_);
+				
+				$XML->endTag($paramItemName);
+			}			
+		}
+		
+		$XML->endTag($paramArrayName);
+		return;
+	}
+	else{
+		while(my($key, $val) = each(%$json)){
+			# Hash
+			if(ref $val eq 'HASH'){
+				$XML->startTag($key);
+				
+				processJSON($val);
+				
+				$XML->endTag($key);
+			}
+			# Array
+			elsif(ref $val eq 'ARRAY'){
+				# Array size
+				if($paramArraySize){
+					$XML->startTag($key, "size" => scalar(@$val));
+				}
+				else{
+					$XML->startTag($key);
+				}				
+
+				processJSON($val);
+				
+				$XML->endTag($key);
+			}
+			# Value
+			else{
+				processData($key, $val);
+			}
+		}
+	}
+}
+
+sub processData{
+	my $key = $_[0];
+	my $val = $_[1];
+	
+	$key =~ s/[\&\<\>\"\/]/$paramSubstitution/g;
+	
+	printError("Invalid tag name after replace", 51) unless isValidTagName($key);
+	
+	# Null
+	unless(defined $val){
+		if($paramL){
+			$XML->startTag($key);
+			$XML->emptyTag("null");
+			$XML->endTag($key);
+		}
+		else{
+			$XML->emptyTag($key, "value" => (($val)? $val : "null"));
+		}		
+	}	
+	# Bool
+	elsif(ref $val eq 'JSON::XS::Boolean'){
+		if($paramL){
+			$XML->startTag($key);
+			$XML->emptyTag($val ? "true" : "false");
+			$XML->endTag($key);
+		}
+		else{
+			$XML->emptyTag($key, "value" => (($val)? "true" : "false"));
+		}
+	}
+	# Number
+	elsif($val =~ /[\d]+/){
+		if($paramI){
+			$XML->startTag($key);
+			$XML->characters($val);
+			$XML->endTag($key);			
+		}
+		else{
+			$XML->emptyTag($key, "value" => $val);
+		}
+	}
+	# String
+	else{
+		# Encode
+		if($paramC){
+			if($paramS){
+				$XML->startTag($key);
+				$XML->characters($val);
+				$XML->endTag($key);
+			}
+			else{
+				$XML->emptyTag($key, "value" => $val);
+			}
+		}
+		# Raw
+		else{
+			if($paramS){
+				$XML->startTag($key);
+				$XML->raw($val);
+				$XML->endTag($key);
+			}
+			else{
+				$XML->raw("<". $key. " value=\"");
+				$XML->raw($val);
+				$XML->raw("\" />");
+			}
+		}
+	}
+}
+
 sub isValidTagName{
-	return ($_[0] =~ /^_?(?!(xml|[_\d\W]))([\w.-]+)$/)? 1 : 0;
+	# \A - Match only at beginning of string
+	# \S - non white space
+	# \w - Match a "word" character (alphanumeric plus "_")
+	#print $_[0].": ".(($_[0] =~ /\A(?!xml)[\p{L}][\p{L}\d\_\-]*$/i)? 1 : 0)."\n";
+	return ($_[0] =~ /\A(?!xml)[\p{L}\_\:][\p{L}\d\_\-\.\:]*$/i)? 1 : 0;
+
+	#return ($_[0] =~ /\A(?!XML)[\p{Letter}][\p{Letter}0-9-]*/i)? 1 : 0;
+	#return ($_[0] =~ /^_?(?!(xml|[_\d\W]))([\w.-]+)$/)? 1 : 0;
 }
 
 sub substrCount(){
