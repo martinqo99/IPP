@@ -10,8 +10,8 @@ use JSON::XS;
 use IO::File;
 use XML::Writer;
 
-my $paramInputFile = "";		#
-my $paramOutputFile = "";		#
+my $paramInputFile = "-";		#
+my $paramOutputFile = "-";		#
 my $paramSubstitution = "-";	# Substitution of unallowed characters
 my $paramN = 0; 				# Do not generate XML header
 my $paramRootElement = "";		# Name of root elementy
@@ -30,20 +30,26 @@ my $paramIndexItemsStart = -1;	#
 #############################################################################
 
 	# Parse arguments 
-	parseArguments(@ARGV);	
+	parseArguments(@ARGV);
 	
-	# Load JSON file
-	open(my $fileHandler, '<', $paramInputFile) or printError("Cannot open input file", 2);
+	local $/ = undef;
 	
-		local $/ = undef;
-		# Read whole file to buffer
-		my $jsonDataRaw = <$fileHandler>;
-		
-	# Close JSON file
-	close($fileHandler);	
+	# Create instance of IO::File
+	my $fileHandler = new IO::File();
+	
+	# Open input file
+	$fileHandler->open("< $paramInputFile") or printError("Cannot open input file", 2);
+	
+	# Read input file to buffer
+	my $jsonDataRaw = <$fileHandler>;
+	
+	# Close input file
+	$fileHandler->close();
+	
+	undef $fileHandler;
 	
 	# Create instance of JSON parser
-	my $jsonParser = JSON::XS->new();
+	my $jsonParser = new JSON::XS();
 	my $jsonData;
 	
 	# Simulate try catch block
@@ -51,14 +57,22 @@ my $paramIndexItemsStart = -1;	#
 		# Parse JSON file
 		$jsonData = $jsonParser->utf8->decode($jsonDataRaw);
 	};
+	# Catch
 	if($@){
 		printError("Invalid format of input data", 4);
 	}
-		
+	
+	# 
 	printError("Invalid format of input data", 4) if(ref $jsonData eq "ARRAY");
+	
+	# Free JSON parser & input buffer
+	undef $jsonParser;
+	undef $jsonDataRaw;	
 
-	print Dumper $jsonData;
-
+	# This function does that dirty job
+	createXML($jsonData, $paramOutputFile);
+	
+	exit 0;
 # /Main
 
 #############################################################################
@@ -66,11 +80,6 @@ my $paramIndexItemsStart = -1;	#
 #############################################################################
 sub parseArguments{
 	my @argv = @_;
-	
-	if(@argv == 0){
-		printError("Invalid arguments", 1);
-	}
-	
 	my $argvString = join(" ", @argv) . " ";	
 
 	# Help
@@ -80,6 +89,8 @@ sub parseArguments{
 	
 	# Option --input
 	if($argvString =~ /--input/){
+		printError("Multiple definition of --input", 1) if(substrCount($argvString, "--input") > 1);
+	
 		if($argvString =~ s/--input=([\S]*) //){
 			$paramInputFile = $1;
 			
@@ -92,6 +103,8 @@ sub parseArguments{
 	
 	# Option --output
 	if($argvString =~ /--output/){
+		printError("Multiple definition of --output", 1) if(substrCount($argvString, "--output") > 1);
+	
 		if($argvString =~ s/--output=([\S]*) //){
 			$paramOutputFile = $1;
 			
@@ -105,8 +118,10 @@ sub parseArguments{
 
 	# Option -h=subst
 	if($argvString =~ /-h/){
+		printError("Multiple definition of -h", 1) if(substrCount($argvString, "-h ") > 1);
+	
 		if($argvString =~ s/-h=([\S]) //){
-			$paramSubstitution = $?;
+			$paramSubstitution = $1;
 		}
 		else{
 			printError("Invalid usage of argument -h", 1);
@@ -114,12 +129,15 @@ sub parseArguments{
 	}
 	
 	# Option -n
+	printError("Multiple definition of -n", 1) if(substrCount($argvString, "-n ") > 1);
 	$paramN = 1 if($argvString =~ s/-n //);
 	
 	# Option -r=root-element
 	if($argvString =~ /-r/){
+		printError("Multiple definition of -r", 1) if(substrCount($argvString, "-r ") > 1);
+		
 		if($argvString =~ s/-r=([\S]+) //){
-			$paramRootElement = $?;
+			$paramRootElement = $1;
 		}
 		else{
 			printError("Invalid usage of argument -r", 1);
@@ -128,8 +146,10 @@ sub parseArguments{
 
 	# Option --array-name=array-element
 	if($argvString =~ /--array-name/){
+		printError("Multiple definition of --array-name", 1) if(substrCount($argvString, "--array-name") > 1);
+	
 		if($argvString =~ s/--array-name=([\S]+) //){
-			$paramArrayName = $?;
+			$paramArrayName = $1;
 		}
 		else{
 			printError("Invalid usage of argument --array-name", 1);
@@ -138,41 +158,49 @@ sub parseArguments{
 	
 	# Option --item-name=item-element
 	if($argvString =~ /--item-name/){
+		printError("Multiple definition of --item-name", 1) if(substrCount($argvString, "--item-name") > 1);
+	
 		if($argvString =~ s/--item-name=([\S]+) //){
-			$paramItemName = $?;
+			$paramItemName = $1;
 		}
 		else{
 			printError("Invalid usage of argument --item-name", 1);
 		}
 	}	
 	
-	
 	# Options -s -i -l -c
+	printError("Multiple definition of -s", 1) if(substrCount($argvString, "-s ") > 1);
 	$paramS = 1 if($argvString =~ s/-s //);
+	printError("Multiple definition of -i", 1) if(substrCount($argvString, "-i ") > 1);
 	$paramI = 1 if($argvString =~ s/-i //);
+	printError("Multiple definition of -l", 1) if(substrCount($argvString, "-l ") > 1);
 	$paramL = 1 if($argvString =~ s/-l //);
+	printError("Multiple definition of -c", 1) if(substrCount($argvString, "-c ") > 1);
 	$paramC = 1 if($argvString =~ s/-c //);
 
 	# Options -a --array-size
+	printError("Multiple definition of --array-size / -a", 1) if(substrCount($argvString, "--array-size") + substrCount($argvString, "-a ") > 1);
 	$paramArraySize = 1 if($argvString =~ s/--array-size //);
 	$paramArraySize = 1 if($argvString =~ s/-a //);
 	
 	# Options -t --index-items
+	printError("Multiple definition of --index-items / -t", 1) if(substrCount($argvString, "--index-items") + substrCount($argvString, "-t ") > 1);
 	$paramIndexItems = 1 if($argvString =~ s/--index-items //);
 	$paramIndexItems = 1 if($argvString =~ s/-t //);
 	
 	# Option --start
 	if($argvString =~ /--start/){
+		printError("Multiple definition of --start", 1) if(substrCount($argvString, "--start") > 1);
 		if($argvString =~ s/--start=([0-9]+) //){
-			$paramIndexItemsStart = $?;
+			$paramIndexItemsStart = $1;
 		}
 		else{
 			printError("Invalid usage of argument --start", 1);
 		}
 	}
 	
-	printError("Input file must be specified", 1) if($paramInputFile eq "");
-	printError("Output file must be specified", 1) if($paramOutputFile eq "");
+	#printError("Input file must be specified", 1) if($paramInputFile eq "");
+	#printError("Output file must be specified", 1) if($paramOutputFile eq "");
 	printError("Argument --start needs option Index items enabled", 1) if($paramIndexItemsStart >= 0 && $paramIndexItems == 0);
 	printError("Invalid arguments", 1) unless($argvString =~ /^[\ ]*$/);
 	
@@ -181,6 +209,51 @@ sub parseArguments{
 	}
 }
 # /parseArguments()
+
+#############################################################################
+# createXML(jsonData, outputFile)
+#############################################################################
+sub createXML{
+	my $data = $_[0];
+	my $outputFile = $_[1];
+	
+	my $fileHandler = new IO::File();
+	
+	# Open output file
+	$fileHandler->open("> $outputFile") or printError("Cannot open output file", 3);
+	
+	# Create instance of XML Writer
+	# ,,Error reporting can be turned off by providing an UNSAFE parameter"
+	my $XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1);
+
+	$XML->xmlDecl("UTF-8") unless $paramN;
+	$XML->startTag($paramRootElement) unless $paramRootElement eq "";
+
+	#print Dumper $data;
+
+	
+	$XML->endTag($paramRootElement) unless $paramRootElement eq "";
+	
+	# Close XML Writer
+	$XML->end();
+	
+	# Close output file
+	$fileHandler->close();
+	
+	#print isValidTagName("a")."\n";
+	#print isValidTagName("xmla")."\n";
+	#print isValidTagName("0a")."\n";
+}
+# /createXML()
+
+sub isValidTagName{
+	return ($_[0] =~ /^_?(?!(xml|[_\d\W]))([\w.-]+)$/)? 1 : 0;
+}
+
+sub substrCount(){
+	my @count = $_[0] =~ /$_[1]/g;
+	return scalar @count;
+}
 
 #############################################################################
 # printHelp()
@@ -211,12 +284,14 @@ sub printHelp{
 }
 # /PrintHelp()
 
+#############################################################################
 # printError()
+#############################################################################
 sub printError{
 	my @argv = @_;
 	
 	if(@argv > 0){
-		print "[!] $argv[0]\n";
+		print STDERR "[!] $argv[0]\n";
 		
 		exit ((@argv == 2)? $argv[1] : 255);
 	}
