@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 
+#JSN:xkolac12
+
 use strict;
 use warnings;
 use utf8;
@@ -36,6 +38,9 @@ my $fileHandler = new IO::File();
 my $jsonParser = new JSON::XS();
 # Global instance of XML Writer
 my $XML;
+
+my @Stack;
+my $StackCounter;
 
 #############################################################################
 # Main
@@ -239,6 +244,9 @@ sub createXML{
 
 	$XML->xmlDecl("UTF-8") unless $paramN;
 	$XML->startTag($paramRootElement) unless $paramRootElement eq "";
+	
+	# Setup global counter
+	$StackCounter = $paramIndexItemsStart;
 
 	#print Dumper $data;
 	processJSON($data);
@@ -263,19 +271,32 @@ sub processJSON{
 	if(ref $json eq 'ARRAY'){
 		$XML->startTag($paramArrayName);
 		
+		push (@Stack, $StackCounter);
+		
+		$StackCounter = $paramIndexItemsStart;
+		
 		foreach(@$json){
 			
 			if(ref $_ eq "" or ref $_ eq "JSON::XS::Boolean"){
 				processData($paramItemName, $_);
 			}
 			else{
-				$XML->startTag($paramItemName);
+				if($paramIndexItems){
+					$XML->startTag($paramItemName, "index" => $StackCounter);
+				}
+				else{
+					$XML->startTag($paramItemName);
+				}
+				
+				$StackCounter++;						
 				
 				processJSON($_);
 				
 				$XML->endTag($paramItemName);
 			}			
 		}
+		
+		$StackCounter = pop @Stack;
 		
 		$XML->endTag($paramArrayName);
 		return;
