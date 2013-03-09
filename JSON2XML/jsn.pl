@@ -138,6 +138,8 @@ sub parseArguments{
 		
 		if($argvString =~ s/-r=([\S]+) //){
 			$paramRootElement = $1;
+			
+			printError("Unallowed characters in root element", 50) unless isValidTagName($paramRootElement);
 		}
 		else{
 			printError("Invalid usage of argument -r", 1);
@@ -150,6 +152,8 @@ sub parseArguments{
 	
 		if($argvString =~ s/--array-name=([\S]+) //){
 			$paramArrayName = $1;
+			
+			printError("Unallowed characters in array name", 50) unless isValidTagName($paramArrayName);
 		}
 		else{
 			printError("Invalid usage of argument --array-name", 1);
@@ -162,6 +166,8 @@ sub parseArguments{
 	
 		if($argvString =~ s/--item-name=([\S]+) //){
 			$paramItemName = $1;
+			
+			printError("Unallowed characters in item name", 50) unless isValidTagName($paramItemName);
 		}
 		else{
 			printError("Invalid usage of argument --item-name", 1);
