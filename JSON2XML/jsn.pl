@@ -42,6 +42,12 @@ my $XML;
 my @Stack;
 my $StackCounter;
 
+use constant {
+    RAW   => 1,
+    ENCODED   => 2,
+    EMPTY => 3,
+};
+
 #############################################################################
 # Main
 #############################################################################
@@ -240,7 +246,7 @@ sub createXML{
 	
 	# Create instance of XML Writer
 	# ,,Error reporting can be turned off by providing an UNSAFE parameter"
-	$XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1);
+	$XML = new XML::Writer(OUTPUT => $fileHandler, UNSAFE => 1, DATA_MODE => 'true', DATA_INDENT => 2);
 
 	$XML->xmlDecl("UTF-8") unless $paramN;
 	$XML->startTag($paramRootElement) unless $paramRootElement eq "";
@@ -250,7 +256,6 @@ sub createXML{
 
 	#print Dumper $data;
 	processJSON($data);
-
 	
 	$XML->endTag($paramRootElement) unless $paramRootElement eq "";
 	
@@ -293,11 +298,11 @@ sub processJSON{
 				else{
 					$XML->startTag($paramItemName);
 				}
-				
+								
 				$StackCounter++;						
 				
 				processJSON($_);
-				
+
 				$XML->endTag($paramItemName);
 			}			
 		}
@@ -307,6 +312,7 @@ sub processJSON{
 		$XML->endTag($paramArrayName);
 		return;
 	}
+	# Not array.. Hash etc..
 	else{
 		while(my($key, $val) = each(%$json)){
 			# Hash
@@ -320,13 +326,13 @@ sub processJSON{
 			# Array
 			elsif(ref $val eq 'ARRAY'){
 				# Array size
-				if($paramArraySize){
+				if($paramArraySize and $key eq $paramArrayName){
 					$XML->startTag($key, "size" => scalar(@$val));
 				}
 				else{
 					$XML->startTag($key);
-				}				
-
+				}		
+				
 				processJSON($val);
 				
 				$XML->endTag($key);
@@ -339,10 +345,13 @@ sub processJSON{
 	}
 }
 
+#############################################################################
+# processData($key, $val)
+#############################################################################
 sub processData{
-	my $key = $_[0];
-	my $val = $_[1];
+	my ($key, $val) = @_;
 	
+	# Auto replace invalid characters
 	$key =~ s/[\&\<\>\"\/]/$paramSubstitution/g;
 	
 	printError("Invalid tag name after replace", 51) unless isValidTagName($key);
@@ -350,34 +359,29 @@ sub processData{
 	# Null
 	unless(defined $val){
 		if($paramL){
-			$XML->startTag($key);
-			$XML->emptyTag("null");
-			$XML->endTag($key);
+			createXMLElement($key, "null", EMPTY);
 		}
 		else{
-			$XML->emptyTag($key, "value" => (($val)? $val : "null"));
+			createXMLAttribute($key, "null");
 		}		
 	}	
 	# Bool
 	elsif(ref $val eq 'JSON::XS::Boolean'){
 		if($paramL){
-			$XML->startTag($key);
-			$XML->emptyTag($val ? "true" : "false");
-			$XML->endTag($key);
+			createXMLElement($key, ($val ? "true" : "false"), EMPTY);
 		}
 		else{
-			$XML->emptyTag($key, "value" => (($val)? "true" : "false"));
+			createXMLAttribute($key, ($val? "true" : "false"));
 		}
 	}
 	# Number
-	elsif($val =~ /[\d]+/){
+	#elsif($val =~ /^[\d]+$/){
+	elsif(! ($val ^ $val)){
 		if($paramI){
-			$XML->startTag($key);
-			$XML->characters($val);
-			$XML->endTag($key);			
+			createXMLElement($key, $val, ENCODED);
 		}
 		else{
-			$XML->emptyTag($key, "value" => $val);
+			createXMLAttribute($key, $val);
 		}
 	}
 	# String
@@ -385,29 +389,50 @@ sub processData{
 		# Encode
 		if($paramC){
 			if($paramS){
-				$XML->startTag($key);
-				$XML->characters($val);
-				$XML->endTag($key);
+				createXMLElement($key, $val, ENCODED);
 			}
 			else{
-				$XML->emptyTag($key, "value" => $val);
+				createXMLAttribute($key, $val);
 			}
 		}
 		# Raw
 		else{
 			if($paramS){
-				$XML->startTag($key);
-				$XML->raw($val);
-				$XML->endTag($key);
+				createXMLElement($key, $val, RAW);
 			}
 			else{
-				$XML->raw("<". $key. " value=\"");
-				$XML->raw($val);
-				$XML->raw("\" />");
+				$XML->raw("<".$key." value=\"".$val."\" />");
 			}
 		}
 	}
 }
+# /processData($key, $val)
+
+#############################################################################
+# createXMLElement($key, $val, $type)
+#############################################################################
+sub createXMLElement{
+	my ($key, $val, $type) = @_;
+
+	$XML->startTag($key);
+    
+	$XML->raw($val) 		if($type == RAW);
+	$XML->emptyTag($val) 	if($type == EMPTY);
+	$XML->characters($val) if($type == ENCODED);
+		
+	$XML->endTag($key);
+}
+# /createXMLElement($key, $val, $type)
+
+#############################################################################
+# createXMLAttribute($key, $val)
+#############################################################################
+sub createXMLAttribute{
+	my ($key, $val) = @_;
+	
+	$XML->emptyTag($key, "value" => $val);
+}
+# /createXMLAttribute($key, $val)
 
 sub isValidTagName{
 	# \A - Match only at beginning of string
