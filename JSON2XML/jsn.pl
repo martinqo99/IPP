@@ -44,6 +44,8 @@ my @Stack;
 # Global counter
 my $StackCounter;
 
+my $IndexFlag = 0;
+
 use constant {
     RAW   	=> 1,
     ENCODED => 2,
@@ -255,8 +257,14 @@ sub createXML{
 	# Setup global counter
 	$StackCounter = $paramIndexItemsStart;
 
-	#print Dumper $data;
-	processJSON($data);
+	# Process data - Array
+	if(ref $data eq 'ARRAY'){
+		processArray($data);
+	}
+	# Process data - Hash
+	else{
+		processHash($data);
+	}
 	
 	$XML->endTag($paramRootElement) unless $paramRootElement eq "";
 	
@@ -272,87 +280,86 @@ sub createXML{
 }
 # /createXML()
 
-sub processJSON{
+sub processHash{
 	my ($json) = @_;
-
-	# Array
-	if(ref $json eq 'ARRAY'){
-		# Array size
-		if($paramArraySize){
-			$XML->startTag($paramArrayName, "size" => scalar(@$json));
+	
+	while(my($key, $val) = each(%$json)){
+		# Hash
+		if(ref $val eq 'HASH'){		
+			$XML->startTag($key);
+			processHash($val);
+			$XML->endTag($key);
 		}
+		# Array
+		elsif(ref $val eq 'ARRAY'){
+			$XML->startTag($key);
+			processArray($val);
+			$XML->endTag($key);
+		}
+		# Value
 		else{
-			$XML->startTag($paramArrayName);
-		}	
-		
-		push (@Stack, $StackCounter);
-		
-		$StackCounter = $paramIndexItemsStart;
-		
-		foreach(@$json){
-			
-			if(ref $_ eq "" or ref $_ eq "JSON::XS::Boolean"){
-				processData($paramItemName, $_);
-			}
-			else{
-				if($paramIndexItems){
-					$XML->startTag($paramItemName, "index" => $StackCounter);
-				}
-				else{
-					$XML->startTag($paramItemName);
-				}
-								
-				$StackCounter++;						
-				
-				processJSON($_);
-
-				$XML->endTag($paramItemName);
-			}			
-		}
-		
-		$StackCounter = pop @Stack;
-		
-		$XML->endTag($paramArrayName);
-		return;
-	}
-	# Not array.. Hash etc..
-	else{
-		while(my($key, $val) = each(%$json)){
-			# Hash
-			if(ref $val eq 'HASH'){
-				$XML->startTag($key);
-				
-				processJSON($val);
-				
-				$XML->endTag($key);
-			}
-			# Array
-			elsif(ref $val eq 'ARRAY'){
-				# Array size
-				if($paramArraySize and $key eq $paramArrayName){
-					$XML->startTag($key, "size" => scalar(@$val));
-				}
-				else{
-					$XML->startTag($key);
-				}		
-				
-				processJSON($val);
-				
-				$XML->endTag($key);
-			}
-			# Value
-			else{
-				processData($key, $val);
-			}
+			processData($key, $val);
 		}
 	}
 }
 
+sub processArray{
+	my ($json) = @_;
+	
+	# Array size
+	if($paramArraySize){
+		$XML->startTag($paramArrayName, "size" => scalar(@$json));
+	}
+	else{
+		$XML->startTag($paramArrayName);
+	}
+		
+	# Store global counter
+	push (@Stack, $StackCounter);
+		
+	# Reinit new global counter
+	$StackCounter = $paramIndexItemsStart;
+		
+	# Iterate trought array
+	foreach(@$json){
+		# Item in array
+		if(ref $_ eq "" or ref $_ eq "JSON::XS::Boolean"){		
+			$IndexFlag = (1 and $paramIndexItems);
+			processData($paramItemName, $_);
+			$IndexFlag = 0;
+		}
+		else{
+			if($paramIndexItems){
+				$XML->startTag($paramItemName, "index" => $StackCounter);
+			}
+			else{
+				$XML->startTag($paramItemName);
+			}
+			
+			$StackCounter++;
+			
+			if(ref $_ eq "ARRAY"){
+				processArray($_);
+			}
+			else{
+				processHash($_);
+			}
+			
+			$XML->endTag($paramItemName);
+		}		
+	}		
+		
+	# Release global counter
+	$StackCounter = pop @Stack;
+		
+	$XML->endTag($paramArrayName);	
+}
+
 #############################################################################
-# processData($key, $val)
+# processData($key, $val, $index)
 #############################################################################
 sub processData{
-	my ($key, $val) = @_;
+	my ($key, $val, $index) = @_;
 	
 	# Auto replace invalid characters
 	$key =~ s/[\&\<\>\"\/]/$paramSubstitution/g;
@@ -417,7 +424,13 @@ sub processData{
 sub createXMLElement{
 	my ($key, $val, $type) = @_;
 
-	$XML->startTag($key);
+	if($IndexFlag){
+		$XML->startTag($key, "index" => $StackCounter);
+		$StackCounter++;
+	}
+	else{
+		$XML->startTag($key);
+	}
     
 	$XML->raw($val) 		if($type == RAW);
 	$XML->emptyTag($val) 	if($type == EMPTY);
@@ -433,7 +446,13 @@ sub createXMLElement{
 sub createXMLAttribute{
 	my ($key, $val) = @_;
 	
-	$XML->emptyTag($key, "value" => $val);
+	if($IndexFlag){
+		$XML->emptyTag($key, "index" => $StackCounter, "value" => $val);
+		$StackCounter++;
+	}
+	else{
+		$XML->emptyTag($key, "value" => $val);
+	}
 }
 # /createXMLAttribute($key, $val)
 
