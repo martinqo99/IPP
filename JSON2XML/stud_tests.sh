@@ -7,7 +7,7 @@
 # - vytvoří výstupy studentovy úlohy v daném interpretu na základě sady testů
 # =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-jexamlXMLPath=`which jexamxml`
+jexamlXMLPath=`which jexamxml 2>/dev/null`
 
 if [ "$jexamlXMLPath" == "" ]; then
 	echo "Cannot find jexamxml in PATH"
