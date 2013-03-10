@@ -269,7 +269,13 @@ sub processJSON{
 
 	# Array
 	if(ref $json eq 'ARRAY'){
-		$XML->startTag($paramArrayName);
+		# Array size
+		if($paramArraySize){
+			$XML->startTag($paramArrayName, "size" => scalar(@$json));
+		}
+		else{
+			$XML->startTag($paramArrayName);
+		}	
 		
 		push (@Stack, $StackCounter);
 		
