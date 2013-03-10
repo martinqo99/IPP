@@ -39,13 +39,15 @@ my $jsonParser = new JSON::XS();
 # Global instance of XML Writer
 my $XML;
 
+# Global stack
 my @Stack;
+# Global counter
 my $StackCounter;
 
 use constant {
-    RAW   => 1,
-    ENCODED   => 2,
-    EMPTY => 3,
+    RAW   	=> 1,
+    ENCODED => 2,
+    EMPTY 	=> 3,
 };
 
 #############################################################################
@@ -236,8 +238,7 @@ sub parseArguments{
 # createXML(jsonData, outputFile)
 #############################################################################
 sub createXML{
-	my $data = $_[0];
-	my $outputFile = $_[1];
+	my ($data, $outputFile) = @_;
 	
 	# Open output file
 	$fileHandler->open("> $outputFile") or printError("Cannot open output file", 3);
@@ -266,11 +267,13 @@ sub createXML{
 	
 	# Close output file
 	$fileHandler->close();
+	
+	undef $fileHandler;
 }
 # /createXML()
 
 sub processJSON{
-	my $json = $_[0];
+	my ($json) = @_;
 
 	# Array
 	if(ref $json eq 'ARRAY'){
@@ -434,21 +437,29 @@ sub createXMLAttribute{
 }
 # /createXMLAttribute($key, $val)
 
+#############################################################################
+# isValidTagName(tagName)
+#############################################################################
 sub isValidTagName{
 	# \A - Match only at beginning of string
 	# \S - non white space
 	# \w - Match a "word" character (alphanumeric plus "_")
 	#print $_[0].": ".(($_[0] =~ /\A(?!xml)[\p{L}][\p{L}\d\_\-]*$/i)? 1 : 0)."\n";
-	return ($_[0] =~ /\A(?!xml)[\p{L}\_\:][\p{L}\d\_\-\.\:]*$/i)? 1 : 0;
-
 	#return ($_[0] =~ /\A(?!XML)[\p{Letter}][\p{Letter}0-9-]*/i)? 1 : 0;
 	#return ($_[0] =~ /^_?(?!(xml|[_\d\W]))([\w.-]+)$/)? 1 : 0;
+	
+	return ($_[0] =~ /\A(?!xml)[\p{L}\_\:][\p{L}\d\_\-\.\:]*$/i)? 1 : 0;
 }
+# /isValidTagName(tagName)
 
+#############################################################################
+# substrCount($string)
+#############################################################################
 sub substrCount(){
 	my @count = $_[0] =~ /$_[1]/g;
 	return scalar @count;
 }
+# /substrCount($string)
 
 #############################################################################
 # printHelp()
@@ -480,7 +491,7 @@ sub printHelp{
 # /PrintHelp()
 
 #############################################################################
-# printError()
+# printError($errorMsg, $errorCode = 255)
 #############################################################################
 sub printError{
 	my @argv = @_;
@@ -493,4 +504,4 @@ sub printError{
 	
 	exit 255;
 }
-# /printError()
+# /printError($errorMsg, $errorCode = 255)
