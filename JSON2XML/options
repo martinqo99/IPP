@@ -4,7 +4,7 @@
 DoNamespaces = 1
 
 # Schema checking Off - 0 On - 1
-DoSchema = 0
+DoSchema = 1
 
 # Full schema checking Off - 0 On - 1
 SchemaFullChecking = 0
@@ -53,3 +53,4 @@ IgnoreValues = 0
 # Key element and attributes
 #KeyAttribute = books>book|uuid
 #KeyElement = books>book>name
+
