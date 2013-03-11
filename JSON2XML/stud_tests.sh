@@ -103,7 +103,7 @@ while read line; do
 	diffOutput=`diff -y "$LOCAL_IN_PATH/$testName.err" "$LOCAL_OUT_PATH/$testName.err"`
 	diffStatus=$?
 	
-	jexamxml "$LOCAL_IN_PATH/$testName.xml" "$LOCAL_OUT_PATH/$testName.xml" 2>&1 >/dev/null
+	jexamxml "$LOCAL_IN_PATH/$testName.xml" "$LOCAL_OUT_PATH/$testName.xml" "$LOCAL_OUT_PATH/$testName-delta.xml" options 2>&1 >/dev/null
 	xmlStatus=$?
 	
 	if [[ "$expectedStatus" == "$realStatus" &&  "$xmlStatus" != "1" ]]; then
