@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<array>
+  <item index="1" value="1" />
+  <item index="2" value="2" />
+  <item index="3" value="3" />
+  <item index="4">
+    <array>
+      <item index="1" value="1" />
+      <item index="2" value="2" />
+      <item index="3" value="3" />
+    </array>
+  </item>
+</array>
