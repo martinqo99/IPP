@@ -91,6 +91,10 @@ echo -n $? > $LOCAL_OUT_PATH/test15.!!!
 $INTERPRETER $TASK.$EXTENSION -i --input=$LOCAL_IN_PATH/test16.jsn --output=$LOCAL_OUT_PATH/test16.xml -h=x 2> $LOCAL_OUT_PATH/test16.err
 echo -n $? > $LOCAL_OUT_PATH/test16.!!!
 
+# test17: Expected return code: 0
+$INTERPRETER $TASK.$EXTENSION --input=$LOCAL_IN_PATH/test17.jsn --output=$LOCAL_OUT_PATH/test17.xml -t 2> $LOCAL_OUT_PATH/test17.err
+echo -n $? > $LOCAL_OUT_PATH/test17.!!!
+
 while read line; do
 # sed 's/.*second \([^ ]*\).*/
 	testName=`echo "$line" | sed 's/.\+\/\([A-z0-9]\+\)\.err$/\1/g'`;

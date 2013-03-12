@@ -411,7 +411,13 @@ sub processData{
 				createXMLElement($key, $val, RAW);
 			}
 			else{
-				$XML->raw("<".$key." value=\"".$val."\" />");
+				if($IndexFlag){
+					$XML->raw("<".$key." index=\"".$StackCounter."\" value=\"".$val."\" />");
+					$StackCounter++;
+				}
+				else{
+					$XML->raw("<".$key." value=\"".$val."\" />");
+				}
 			}
 		}
 	}

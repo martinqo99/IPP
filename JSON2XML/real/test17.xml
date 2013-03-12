@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<myObject>
+  <skills>
+    <array>
+      <item index="1">
+        <tests>
+          <array>
+            <item index="1"><name value="One" />
+              <score value="90" />
+            </item>
+            <item index="2"><name value="Two" />
+              <score value="96" />
+            </item>
+          </array>
+        </tests><category value="Javascript" />
+      </item>
+      <item index="2">
+        <tests>
+          <array>
+            <item index="1"><name value="One" />
+              <score value="79" />
+            </item>
+            <item index="2"><name value="Two" />
+              <score value="84" />
+            </item>
+            <item index="3">
+              <test>
+                <array>
+                  <item index="1"><names value="Three" />
+                    <score value="950" />
+                  </item>
+                  <item index="2"><name value="Four" />
+                    <score value="9786" />
+                  </item>
+                </array>
+              </test><category value="Java" />
+            </item>
+          </array>
+        </tests><category value="CouchDB" />
+      </item>
+      <item index="3">
+        <interests>
+          <array><item index="1" value="Readisdvdng" /><item index="2" value="Moundvtain Biking" /><item index="3" value="Hacking" /><item index="4" value="Reading" /><item index="5" value="Mountain Bidfvking" /><item index="6" value="Hacdvking" /></array>
+        </interests>
+      </item>
+      <item index="4">
+        <tests>
+          <array>
+            <item index="1"><name value="One" />
+              <score value="97" />
+            </item>
+            <item index="2"><name value="Two" />
+              <score value="93" />
+            </item>
+          </array>
+        </tests><category value="Node.js" />
+      </item>
+    </array>
+  </skills>
+</myObject>

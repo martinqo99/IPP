@@ -1,0 +1,75 @@
+{
+
+"myObject" : {
+
+        "skills": [
+
+                {
+
+                        "category": "Javascript",
+
+                        "tests": [
+
+                                { "name": "One", "score": 90 },
+
+                                { "name": "Two", "score": 96 }
+
+                        ] 
+
+                },
+
+                {
+
+                        "category": "CouchDB",
+
+                        "tests": [
+
+                                { "name": "One", "score": 79 },
+
+                                { "name": "Two", "score": 84 },
+
+                                {
+
+                                "category": "Java",
+
+                                "test": [
+
+                                        { "names": "Three", "score": 950 },
+
+                                        { "name": "Four", "score": 9786 }
+
+                                ] 
+
+                                }
+
+                                
+
+                        ] 
+
+                },
+
+                {
+
+                "interests": [ "Readisdvdng", "Moundvtain Biking", "Hacking", "Reading", "Mountain Bidfvking", "Hacdvking"]
+
+                },
+
+                {
+
+                        "category": "Node.js",
+
+                        "tests": [
+
+                                { "name": "One", "score": 97 },
+
+                                { "name": "Two", "score": 93 }
+
+                        ] 
+
+                }
+
+        ]
+
+}
+
+}
