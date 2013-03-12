@@ -1,8 +1,0 @@
-[Fatal Error] test12.xml:5:6:The content of elements must consist of well-formed character data or markup.
-org.xml.sax.SAXParseException; systemId: file:///home/filgy/projects/IPP/JSON2XML/real/test12.xml; lineNumber: 5; columnNumber: 6; The content of elements must consist of well-formed character data or markup.
-	at com.sun.org.apache.xerces.internal.parsers.AbstractSAXParser.parse(AbstractSAXParser.java:1236)
-	at com.sun.org.apache.xerces.internal.jaxp.SAXParserImpl$JAXPSAXParser.parse(SAXParserImpl.java:568)
-	at com.a7soft.examxml.ExamXMLHandler.loadXML(ExamXMLHandler.java:111)
-	at com.a7soft.examxml.ExamXML.loadXML(ExamXML.java:247)
-	at com.a7soft.examxml.ExamXML.compare(ExamXML.java:213)
-	at com.a7soft.examxml.ExamXML.main(ExamXML.java:383)
