@@ -82,9 +82,6 @@ use constant {
 		printError("Invalid format of input data", 4);
 	}
 	
-	# 
-	#printError("Invalid format of input data", 4) if(ref $jsonData eq "ARRAY");
-	
 	# Free JSON parser & input buffer
 	undef $jsonParser;
 	undef $jsonDataRaw;	
