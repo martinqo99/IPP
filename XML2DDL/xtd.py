@@ -2,7 +2,7 @@
 
 #XTD:xkolac12
 
-import argparse, sys, xml.etree.ElementTree as xmlParser, re
+import argparse, sys, xml.etree.ElementTree as xmlParser, xml.dom.minidom as minidom, re
 from pprint import pprint
 
 #
@@ -25,7 +25,7 @@ def typeOf(data, isAttribute = False):
 	else:
 		return "NVARCHAR" if isAttribute else "NTEXT"
 
-
+#
 def typeWeightOf(dataType):	
 	if dataType == "BIT":
 		return 0
@@ -37,7 +37,8 @@ def typeWeightOf(dataType):
 		return 3
 	else:
 		return 4 # NTEXT
-	
+
+#	
 def typeCompare(data, dataType, isAttribute = False):
 	tmp = typeOf(data, isAttribute)
 	
@@ -47,7 +48,16 @@ def typeCompare(data, dataType, isAttribute = False):
 	return tmp if first > second else dataType
 	
 #
-def processXML(node, data, args):
+def isRelation(field, table, tableRelation):
+	
+	for relationTo, relationType in field:
+		if relationTo == table and relationType == tableRelation:
+			return True # There is relation
+			
+	return False # There is no relation
+
+#
+def processXML(node, data, relations, args):
 	
 	for element in node.getchildren():
 		elementName = element.tag.lower()
@@ -97,10 +107,11 @@ def processXML(node, data, args):
 						
 					data[match.tag.lower()][elementName + "_ID"] = "INT"	
 		
-		return processXML(element, data, args)
+		return processXML(element, data, relations, args)
 		
 	return data
 
+#
 def printDDL(data, handler):
 	
 	for table in data.keys():
@@ -116,6 +127,98 @@ def printDDL(data, handler):
 			columns -= 1
 		
 		handler.write(");\n\n")	
+
+#
+def printXML(relations, handler):
+	
+	for table in relations.keys():
+		for relationTo, relationType in relations[table]:			
+			# Symetric relation
+			if not isRelation(relations[relationTo], table, relationType[::-1]):
+				relations[relationTo].append([table, relationType[::-1]])
+			
+			# Transitive relations
+			for tranRelationTo, tranRelationType in relations[relationTo]:
+				if isRelation(relations[table], relationTo, "N:1"):
+					if isRelation(relations[relationTo], tranRelationTo, "N:1"):
+						# Create transitive relation
+						if not isRelation(relations[table], tranRelationTo, "N:1"):
+							relations[table].append([tranRelationTo, "N:1"])
+							
+						# Create symetric relation
+						if not isRelation(relations[tranRelationTo], table, "1:N"):
+							relations[tranRelationTo].append([table, "1:N"])
+					
+				if isRelation(relations[table], relationTo, "1:N"):
+					if isRelation(relations[relationTo], tranRelationTo, "1:N"):
+						# Create transitive relation
+						if not isRelation(relations[table], tranRelationTo, "1:N"):
+							relations[table].append([tranRelationTo, "1:N"])
+						
+						# Create symetric relation
+						if not isRelation(relations[tranRelationTo], table, "N:1"):
+							relations[tranRelationTo].append([table, "N:1"])
+							
+	for table in relations.keys():
+		for relationTo, relationType in relations[table]:		
+			if isRelation(relations[table], relationTo, "1:N") and isRelation(relations[table], relationTo, "N:1"):
+				# Cleaning relations
+				relations[relationTo].remove([table, "N:1"])
+				relations[relationTo].remove([table, "1:N"])				
+				relations[table].remove([relationTo, "1:N"])
+				relations[table].remove([relationTo, "N:1"])
+				
+				#
+				relations[relationTo].append([table, "N:M"])
+				relations[table].append([relationTo, "N:M"])
+				
+			for tranRelationTo, tranRelationType in relations[relationTo]:
+				if table == tranRelationTo:
+					continue
+				
+				if isRelation(relations[table], relationTo, "N:1"):
+					# N-1-N
+					if isRelation(relations[relationTo], tranRelationTo, "1:N"):
+						if isRelation(relations[table], tranRelationTo, "1:N"):
+							continue
+						
+						if isRelation(relations[table], tranRelationTo, "N:1"):
+							continue
+						
+						# Added relation
+						if not isRelation(relations[table], tranRelationTo, "N:M"):
+							relations[table].append([tranRelationTo, "N:M"])
+						
+						# Added symetric relation
+						if not isRelation(relations[tranRelationTo], table, "N:M"):
+							relations[tranRelationTo].append([table, "N:M"])
+							
+				if isRelation(relations[table], relationTo, "1:N"):
+					# 1-N-1
+					if isRelation(relations[relationTo], tranRelationTo, "N:1"):
+						if isRelation(relations[table], tranRelationTo, "1:N"):
+							continue
+						
+						if isRelation(relations[table], tranRelationTo, "N:1"):
+							continue
+						
+						# Added relation
+						if not isRelation(relations[table], tranRelationTo, "N:M"):
+							relations[table].append([tranRelationTo, "N:M"])
+						
+						# Added symetric relation
+						if not isRelation(relations[tranRelationTo], table, "N:M"):
+							relations[tranRelationTo].append([table, "N:M"])
+							
+	root = xmlParser.Element("tables")
+	
+	for table in relations.keys():
+		tableTree = xmlParser.SubElement(root, "table", attrib={"name" : table})
+		
+		for relationTo, relationType in relations[table]:
+			xmlParser.SubElement(tableTree, "relation", attrib = {"to" : relationTo, "relation_type" : relationType})
+			
+		handler.write((minidom.parseString(xmlParser.tostring(root))).toprettyxml())		
 
 #---------------------------------------------
 # Main
@@ -152,7 +255,7 @@ if args.help:
 	
 # Check invalid combination
 if args.etc and args.b:
-	print("Cannot combinate -b and --etc", 1)
+	printError("Parameters --etc and -b can not be defined at the same time", 1)
 
 # Opening input file
 try:
@@ -185,12 +288,15 @@ if args.header:
 
 xmlDataRoot = xmlData.getroot()
 
-data = processXML(xmlDataRoot, {}, args)
+relations = {}
+data = {}
 
-pprint(data)
+processXML(xmlDataRoot, data, relations, args)
+
+#pprint(data)
 
 if args.g:
-	print("TODO")
+	printXML(relations, outputFile)
 else:
 	printDDL(data, outputFile)
 
