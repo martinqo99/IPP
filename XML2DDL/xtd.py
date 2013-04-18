@@ -186,13 +186,18 @@ def printXML(relations, handler):
 				# Cleaning relations
 				relations[relationTo].remove([table, "N:1"])
 				relations[relationTo].remove([table, "1:N"])
-				relations[table].remove([relationTo, "N:1"])
-				relations[table].remove([relationTo, "1:N"])
+				
+				if isRelation(relations[table], relationTo, "N:1"):
+					relations[table].remove([relationTo, "N:1"])
+				
+				if isRelation(relations[table], relationTo, "1:N"):
+					relations[table].remove([relationTo, "1:N"])
 				
 				relations[relationTo].append([table, "N:M"])
 				relations[table].append([relationTo, "N:M"])
-				
-			for tranRelationTo, tranRelationType in relations[relationTo]: # tranzitivni relace
+			
+			# Transitive relations
+			for tranRelationTo, tranRelationType in relations[relationTo]:
 				if table == tranRelationTo:
 					continue
 				if isRelation(relations[table], relationTo, "N:1"):
@@ -260,7 +265,7 @@ except:
 # Print help
 if args.help:
 	if len(sys.argv) != 2:
-		printError("Help cannot be combinated", 100)
+		printError("Help cannot be combinated", 1)
 	
 	parser.print_help()
 	exit(0)
